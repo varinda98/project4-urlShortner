@@ -12,7 +12,7 @@ const createShortUrl = async function(req,res){
 
         }
 
-        let 
+        
         let longUrl = req.body.longUrl
 
 
