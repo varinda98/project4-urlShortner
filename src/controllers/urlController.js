@@ -14,7 +14,7 @@ const createShortUrl = async function(req,res){
 
         
         let longUrl = req.body.longUrl
-
+        if(!longUrl){return res.status(400).send({status:false, message:"please provide the longUrl"})}
 
 
     }catch(error){
