@@ -10,12 +10,14 @@ const urlSchema= new mongoose.Schema({
     },
     longUrl:{
         type:String,
-        require:true
+        require:true,
+        trim:true
     },
     shortUrl:{
         type:String,
         require:true,
-        unique:true
+        unique:true,
+        trim:true
     }
 }, { timestamps: true });
 
