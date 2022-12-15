@@ -2,31 +2,8 @@ const shortid = require("shortid");
 const urlModel = require("../models/urlModel");
 const valid_url = require('valid-url');
 const mongoose = require('mongoose');
-const axios = require('axios');
-
-const redis = require("redis");
-const { promisify } = require("util");
-
-//1. Connect to the redis server
-const redisClient = redis.createClient(
-  19949,
-  "redis-19949.c301.ap-south-1-1.ec2.cloud.redislabs.com",
-  { no_ready_check: true }
-);
-redisClient.auth("Ai50nD8uOQ40ib96RQLUPQ5YsiCJVGlB", function (err) {
-  if (err) throw err;
-});
-
-redisClient.on("connect", async function () {
-  console.log("Connected to Redis..");
-});
-
-
-//2. Prepare the functions for each command
-
-const SET_ASYNC = promisify(redisClient.SET).bind(redisClient);
-const GET_ASYNC = promisify(redisClient.GET).bind(redisClient);
- 
+const axios = require('axios')
+const {GET_ASYNC, SET_ASYNC} = require('../redis/redis')
 
 //----------------------------------------------------------------------------------------//
 //                                1. API -  POST/url/shorten
@@ -42,25 +19,39 @@ const createShortUrl = async function(req, res) {
 
     if (typeof longUrl === "undefined" || longUrl === null ||
        (typeof longUrl === "string" && longUrl.length === 0)
-    ) return res.status(400).send({ status: false, message:"Please enter a valid <longUrl>."});
-   // I can use axios here instead of regex to handle the long url
-    let regex =/(?:https?):\/\/(\w+:?\w*)?(\S+)(:\d+)?(\/|\/([\w#!:.?+=&%!\-\/]))?/
-    if (!regex.test(longUrl)) return res.status(400).send({status:false, message:"please provide valid LongUrl."});
-    
-    const findUrl = await urlModel.findOne({longUrl:longUrl})
-    if(findUrl){ const result = {
-      urlCode: findUrl.urlCode,
-      longUrl: findUrl.longUrl,
-      shortUrl: findUrl.shortUrl
-    };
+    ) return res.status(400).send({ status: false, message:"Please enter a url"});
+   
 
-    return res.status(200).send({ status: true, message: "this Url is already present", data:result});
+  let cacheUrl = await GET_ASYNC(`${longUrl}`)// we are getting in string format
+  let checkUrlInCache = JSON.parse(cacheUrl)
+   if(checkUrlInCache) return res.status(200).send({ status:true, message: `this url is coming from cache - ${checkUrlInCache.shortUrl}` })
+
+    let obj = {
+      method: "get",
+      url: longUrl
   }
-      const urlCode = shortid.generate().toLowerCase();
-      const baseUrl = `http://localhost:3000/${urlCode}`;
 
-      const data = { longUrl, baseUrl, urlCode };
+  let urlFound = false;
+  await axios(obj)
+      .then((res) => {
+          if (res.status == 201 || res.status == 200) urlFound = true;
+      })
+      .catch((err) => { });
+  if (!urlFound) {
+      return res.status(400).send({ status: false, message: "Please provide valid LongUrl" })
+  }
+
+  const checkUrlInDb = await urlModel.findOne({ longUrl: longUrl }) 
+  if(checkUrlInDb)await SET_ASYNC(`${longUrl}`, JSON.stringify(checkUrlInDb), 'PX', 86400)
+  if (checkUrlInDb) return res.status(400).send({ status:false, message: `LongUrl already used - ${checkUrlInDb.shortUrl}` })
+
+    
+      const urlCode = shortid.generate().toLowerCase();
+      const shortUrl = `http://localhost:3000/${urlCode}`;
+
+      const data = { longUrl, shortUrl, urlCode };
       const createData = await urlModel.create(data);
+      await SET_ASYNC(`${longUrl}`, JSON.stringify(createData), 'PX', 86400)
     
       const result = {
         urlCode: createData.urlCode,
