@@ -17,19 +17,10 @@ const redisClient = redis.createClient(
   
   //2. Prepare the functions for each command
   
-  const SET_ASYNC = promisify(redisClient.SET).bind(redisClient);
+  const SET_ASYNC = promisify(redisClient.SETEX).bind(redisClient);
   const GET_ASYNC = promisify(redisClient.GET).bind(redisClient);
 
   
   module.exports = {GET_ASYNC, SET_ASYNC}
 
 
- //let cachesUrlData = await GET_ASYNC(`${req.body.longUrl}`);
-
-//    if (cachesUrlData) {
-//      return res.status(201).send({
-//     status: true,
-//     message: "URL Data coming from Cache.",
-//     data: JSON.parse(cachesUrlData),
-//   });
-// }
