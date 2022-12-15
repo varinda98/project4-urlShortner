@@ -16,7 +16,7 @@ mongoose.connect("mongodb+srv://varinda:Flipkart@newproject.7qwzr8u.mongodb.net/
 
 app.use('/', route)
 
-app.listen(process.env.PORT , function(){
-    console.log("Express is running on Port" + (process.env.PORT))
-})
+app.listen(process.env.PORT || 3000, function () {
+    console.log("Express app running on port " + (process.env.PORT || 3000));
+  });
 
